@@ -164,10 +164,10 @@ function render() {
   $('#causeWrap').style.height = (C.length * 46 + 40) + 'px';
   charts.push(new Chart($('#cCause'), {
     type: 'bar',
-    data: { labels: C.map(c => c.k), datasets: [{ data: C.map(c => c.n), backgroundColor: css('--one'), borderRadius: 4, borderSkipped: 'start', barThickness: 22 }] },
+    data: { labels: C.map(c => c.k.replace(" > 24h (thiếu UID / chờ hàng)"," (thiếu UID)")), datasets: [{ data: C.map(c => c.n), backgroundColor: css('--one'), borderRadius: 4, borderSkipped: 'start', barThickness: 22 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false },
       tooltip: { callbacks: { label: x => ` ${x.raw} đơn (${pf(x.raw, T.late)} đơn trễ)` } } },
-      scales: { x: { grid: { color: grid }, ticks: { color: ink }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: css('--text') } } } },
+      scales: { x: { grace: '18%', grid: { color: grid }, ticks: { color: ink }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: css('--text') } } } },
     plugins: [{ id: 'lbl', afterDatasetsDraw(ch) { const { ctx } = ch; ctx.save(); ctx.fillStyle = css('--text'); ctx.font = '600 13px "Be Vietnam Pro",sans-serif'; ctx.textBaseline = 'middle';
       ch.getDatasetMeta(0).data.forEach((b, i) => ctx.fillText(C[i].n + '  ·  ' + pf(C[i].n, T.late), b.x + 8, b.y)); ctx.restore(); } }]
   }));
