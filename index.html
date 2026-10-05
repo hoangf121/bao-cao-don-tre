@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đơn trễ NoUid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{color-scheme:light;--bg:#f6f6f4;--surface:#fcfcfb;--line:#e4e3de;--text:#1c1c1a;--muted:#5d5c57;--faint:#8a8983;
+ --one:#2a78d6;--two:#eb6834;--ok:#c9c8c1;--chip:#efeee9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#121211;--surface:#1a1a19;--line:#2f2f2c;--text:#f3f2ee;--muted:#c3c2b7;--faint:#8f8e86;--one:#3987e5;--two:#d95926;--ok:#4a4a46;--chip:#262624}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#121211;--surface:#1a1a19;--line:#2f2f2c;--text:#f3f2ee;--muted:#c3c2b7;--faint:#8f8e86;--one:#3987e5;--two:#d95926;--ok:#4a4a46;--chip:#262624}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 "Be Vietnam Pro",system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 16px 60px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+h1{font-size:28px;line-height:1.25;margin:0 0 6px}
+h2{font-size:20px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px;max-width:720px}
+label.wk{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+select,input[type=search]{font:inherit;font-size:15px;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+select#week{font-weight:600;min-width:240px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:24px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.tile .k{font-size:14px;color:var(--muted)}
+.tile .v{font-size:32px;font-weight:700;line-height:1.2;margin:4px 0}
+.tile .n{font-size:14px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 18px 14px;margin-bottom:18px}
+.card p.note{color:var(--muted);margin:2px 0 12px;font-size:15px}
+.chart{position:relative;height:300px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:0 0 8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th.l,td.l{text-align:left}
+th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--surface)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:10px;background:var(--chip);color:var(--muted);margin-right:3px}
+.box{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.more{font:inherit;font-size:14px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;margin-top:10px}
+ul.plain{margin:6px 0 0;padding-left:20px}
+ul.plain li{margin:4px 0}
+.foot{color:var(--faint);font-size:13px;margin-top:28px}
+.err{color:var(--two)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+ <div>
+  <h1>Đơn trễ – đơn thiếu UID</h1>
+ </div>
+ <label class="wk">Chọn tuần
+  <select id="week" aria-label="Chọn tuần"></select>
+ </label>
+</div>
+<p class="sub" id="sub">Đang tải…</p>
+
+<div class="tiles" id="tiles"></div>
+
+<div class="card">
+ <h2>Đơn trễ vì lý do gì</h2>
+ <p class="note">Mỗi đơn chỉ tính vào <b>một</b> lý do chính, xét lần lượt từ trên xuống: CS xử lý → chờ CS xác nhận → chờ shop xác nhận → bên vận chuyển → kho.</p>
+ <div class="chart" id="causeWrap"><canvas id="cCause"></canvas></div>
+ <details><summary>Xem dạng bảng</summary><div class="scroll"><table id="tCause"></table></div></details>
+</div>
+
+<div class="card">
+ <h2>Đơn trễ theo 4 trạng thái cần lọc</h2>
+ <p class="note">Một đơn có thể dính nhiều trạng thái cùng lúc, nên cộng lại sẽ lớn hơn tổng đơn trễ.</p>
+ <div class="scroll"><table id="tFlag"></table></div>
+</div>
+
+<div class="card">
+ <h2>Theo ngày tạo đơn</h2>
+ <p class="note" id="dayNote"></p>
+ <div class="legend"><span><i style="background:var(--one)"></i>Trễ</span><span><i style="background:var(--ok)"></i>Không trễ</span></div>
+ <div class="chart"><canvas id="cDay"></canvas></div>
+</div>
+
+<div class="grid2">
+ <div class="card">
+  <h2>Bên vận chuyển không tới lấy</h2>
+  <p class="note">Đơn đã đóng gói nhưng hơn 24 giờ sau vẫn chưa được lấy.</p>
+  <div class="scroll"><table id="tVc"></table></div>
+ </div>
+ <div class="card">
+  <h2>Cách tính</h2>
+  <ul class="plain" id="rules"></ul>
+ </div>
+</div>
+
+<div class="card">
+ <h2>Theo kho</h2>
+ <p class="note">Sắp xếp theo số đơn trễ nhiều nhất.</p>
+ <div class="scroll"><table id="tKho"></table></div>
+ <button class="more" id="khoMore"></button>
+</div>
+
+<div class="card">
+ <h2>Danh sách đơn trễ</h2>
+ <div class="filters">
+  <select id="fCause" aria-label="Lọc theo lý do"></select>
+  <input type="search" id="fText" placeholder="Tìm mã đơn hoặc kho…" aria-label="Tìm">
+ </div>
+ <p class="note" id="ordCount"></p>
+ <div class="box"><table id="tOrd"></table></div>
+</div>
+
+<p class="foot" id="foot"></p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const nf = n => n == null ? '–' : n.toLocaleString('vi-VN');
+const pf = (a, b) => b ? (a / b * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + '%' : '–';
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const dd = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) + (s.length > 10 ? ' ' + s.slice(11) : '') : '';
+let charts = [], D = null, khoAll = false;
+
+Chart.defaults.font.family = '"Be Vietnam Pro",system-ui,sans-serif';
+Chart.defaults.font.size = 13;
+
+async function init() {
+  try {
+    const weeks = await fetch('data/weeks.json', { cache: 'no-store' }).then(r => r.json());
+    const sel = $('#week');
+    sel.innerHTML = weeks.map(w => `<option value="${w.id}">${esc(w.label)}</option>`).join('');
+    const want = new URLSearchParams(location.search).get('tuan');
+    if (want && weeks.some(w => w.id == want)) sel.value = want;
+    sel.onchange = () => { history.replaceState(null, '', '?tuan=' + sel.value); load(sel.value); };
+    load(sel.value);
+  } catch (e) { $('#sub').innerHTML = '<span class="err">Không tải được danh sách tuần.</span>'; }
+}
+
+async function load(id) {
+  $('#sub').textContent = 'Đang tải…';
+  D = await fetch('data/' + id + '.json', { cache: 'no-store' }).then(r => r.json());
+  render();
+}
+
+function render() {
+  const T = D.totals;
+  document.title = 'Đơn trễ NoUid – ' + D.label.replace('Tuần ', '');
+  $('#sub').innerHTML = `${esc(D.label)}. Chỉ xét các đơn thiếu UID (${nf(T.nouid)} đơn ở ${T.khoCount} kho). Số liệu lấy lúc ${esc(D.pulled)}.`;
+  $('#tiles').innerHTML = [
+    ['Đơn thiếu UID', nf(T.nouid), `chiếm ${pf(T.nouid, T.outbound)} trong ${nf(T.outbound)} đơn của các kho này`],
+    ['Đơn bị trễ', nf(T.late), `${pf(T.late, T.nouid)} số đơn thiếu UID`],
+    ['Trễ ở kho', nf(T.kho), 'từ lúc tạo đơn tới lúc đóng gói hơn 24 giờ'],
+    ['Trễ do vận chuyển', nf(T.vc), `đóng gói xong hơn 24 giờ chưa được lấy (${T.both} đơn trễ cả ở kho)`],
+    ['Thời gian chờ đóng gói', (T.medKho ?? '–').toLocaleString('vi-VN') + ' giờ', 'mức giữa của các đơn trễ'],
+  ].map(([k, v, n]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`).join('');
+
+  charts.forEach(c => c.destroy()); charts = [];
+  const grid = css('--line'), ink = css('--muted');
+  // ly do chinh
+  const C = D.causes;
+  $('#causeWrap').style.height = (C.length * 46 + 40) + 'px';
+  charts.push(new Chart($('#cCause'), {
+    type: 'bar',
+    data: { labels: C.map(c => c.k), datasets: [{ data: C.map(c => c.n), backgroundColor: css('--one'), borderRadius: 4, borderSkipped: 'start', barThickness: 22 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: x => ` ${x.raw} đơn (${pf(x.raw, T.late)} đơn trễ)` } } },
+      scales: { x: { grid: { color: grid }, ticks: { color: ink }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: css('--text') } } } },
+    plugins: [{ id: 'lbl', afterDatasetsDraw(ch) { const { ctx } = ch; ctx.save(); ctx.fillStyle = css('--text'); ctx.font = '600 13px "Be Vietnam Pro",sans-serif'; ctx.textBaseline = 'middle';
+      ch.getDatasetMeta(0).data.forEach((b, i) => ctx.fillText(C[i].n + '  ·  ' + pf(C[i].n, T.late), b.x + 8, b.y)); ctx.restore(); } }]
+  }));
+  $('#tCause').innerHTML = '<tr><th class="l">Lý do</th><th>Đơn trễ</th><th>Tỉ lệ</th><th>Giờ tạo → đóng gói (mức giữa)</th></tr>' +
+    C.map(c => `<tr><td class="l">${esc(c.k)}</td><td>${c.n}</td><td>${pf(c.n, T.late)}</td><td>${c.medKho ?? '–'}</td></tr>`).join('');
+
+  $('#tFlag').innerHTML = '<tr><th class="l">Trạng thái</th><th>Đơn trễ</th><th>Trên tổng đơn trễ</th></tr>' +
+    D.flags.map(([k, n]) => `<tr><td class="l">${esc(k)}</td><td>${n}</td><td>${pf(n, T.late)}</td></tr>`).join('');
+
+  // theo ngay
+  const Ds = D.days;
+  const worst = Ds.reduce((a, b) => (b.late / b.n > a.late / a.n ? b : a), Ds[0]);
+  $('#dayNote').textContent = `Ngày có tỉ lệ trễ cao nhất là ${dd(worst.d)} (${pf(worst.late, worst.n)}).`;
+  charts.push(new Chart($('#cDay'), {
+    type: 'bar',
+    data: { labels: Ds.map(d => dd(d.d)), datasets: [
+      { label: 'Trễ', data: Ds.map(d => d.late), backgroundColor: css('--one'), borderRadius: 4, borderSkipped: 'start', borderColor: css('--surface'), borderWidth: { top: 2 } },
+      { label: 'Không trễ', data: Ds.map(d => d.n - d.late), backgroundColor: css('--ok'), borderRadius: 4, borderSkipped: 'start' }] },
+    options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { footer: it => { const d = Ds[it[0].dataIndex]; return `Tổng ${d.n} đơn · trễ ${pf(d.late, d.n)}`; } } } },
+      scales: { x: { stacked: true, grid: { display: false }, ticks: { color: ink } }, y: { stacked: true, grid: { color: grid }, ticks: { color: ink }, border: { display: false } } } }
+  }));
+
+  $('#tVc').innerHTML = '<tr><th class="l">Đơn vị vận chuyển</th><th>Đơn</th><th>Lấy trễ</th><th>Vẫn chưa lấy</th></tr>' +
+    (D.vc.length ? D.vc.map(v => `<tr><td class="l">${esc(v.dv)}</td><td>${v.n}</td><td>${v.picked}</td><td>${v.notyet}</td></tr>`).join('') : '<tr><td class="l" colspan="4">Không có</td></tr>');
+  $('#rules').innerHTML = [
+    '<b>Trễ ở kho:</b> từ lúc tạo đơn tới lần đóng gói đầu tiên hơn 24 giờ. Đơn chưa đóng gói mà đã quá 24 giờ cũng tính trễ.',
+    'Nếu đơn từng bị huỷ xuất kho rồi tạo lại, tính từ lần tạo đầu tiên.',
+    '<b>Trễ do vận chuyển:</b> từ lúc đóng gói tới lúc bên vận chuyển lấy hàng hơn 24 giờ.',
+    'Đơn đã huỷ không tính.',
+    '<b>Chờ trước khi pick:</b> đơn nằm chờ hơn 24 giờ mới bắt đầu được lấy hàng, thường do thiếu UID hoặc chờ hàng.',
+  ].map(x => `<li>${x}</li>`).join('');
+
+  renderKho();
+  const sel = $('#fCause');
+  sel.innerHTML = '<option value="">Tất cả lý do</option>' +
+    [['f:cs', 'Từng CS processing (cờ)'], ['f:csxn', 'Từng chờ CS xác nhận (cờ)'], ['f:shop', 'Từng chờ shop xác nhận (cờ)'], ['f:vc', 'Vận chuyển không tới lấy (cờ)']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('') +
+    D.causeOrder.map((k, i) => D.causes.some(c => c.k == k) ? `<option value="n:${i}">Lý do chính: ${esc(k)}</option>` : '').join('');
+  sel.onchange = renderOrders; $('#fText').oninput = renderOrders;
+  renderOrders();
+  $('#foot').textContent = 'Nguồn: file đơn thiếu UID + hệ thống kho (WMS) + lịch sử trạng thái đơn (OMS). Giờ tính theo giờ Việt Nam.';
+}
+
+function renderKho() {
+  const K = D.kho, n = khoAll ? K.length : Math.min(15, K.length);
+  const short = ['CS', 'CS XN', 'Shop XN', 'Vận chuyển', 'Chờ pick', 'Pick→pack', 'Thiếu LS'];
+  $('#tKho').innerHTML = '<tr><th class="l">Kho</th><th>Đơn của kho</th><th>Thiếu UID</th><th>Trễ</th><th>% trễ</th>' + short.map(s => `<th>${s}</th>`).join('') + '</tr>' +
+    K.slice(0, n).map(k => `<tr><td class="l">${esc(k.kho.replace(/^SHOP - /, ''))}</td><td>${nf(k.out)}</td><td>${k.n}</td><td><b>${k.late}</b></td><td>${pf(k.late, k.n)}</td>${k.c.map(v => `<td>${v || ''}</td>`).join('')}</tr>`).join('');
+  const b = $('#khoMore');
+  b.style.display = K.length > 15 ? '' : 'none';
+  b.textContent = khoAll ? 'Thu gọn' : `Xem cả ${K.length} kho`;
+  b.onclick = () => { khoAll = !khoAll; renderKho(); };
+}
+
+function renderOrders() {
+  const f = $('#fCause').value, q = $('#fText').value.trim().toLowerCase();
+  let O = D.orders;
+  if (f.startsWith('f:')) O = O.filter(o => o[f.slice(2)]);
+  if (f.startsWith('n:')) O = O.filter(o => o.nn == +f.slice(2));
+  if (q) O = O.filter(o => o.ma.toLowerCase().includes(q) || o.kho.toLowerCase().includes(q));
+  $('#ordCount').textContent = `${O.length} đơn`;
+  const tags = o => [o.cs && 'CS', o.csxn && 'CS XN', o.shop && 'Shop XN', o.vc && 'Vận chuyển'].filter(Boolean).map(t => `<span class="tag">${t}</span>`).join('');
+  $('#tOrd').innerHTML = '<tr><th class="l">Mã đơn</th><th class="l">Kho</th><th class="l">Lý do chính</th><th class="l">Cờ</th><th>Tạo đơn</th><th>Đóng gói</th><th>Vận chuyển lấy</th><th>Giờ tới đóng gói</th><th>Giờ chờ lấy</th><th class="l">Trạng thái kho</th><th class="l">Vận chuyển</th></tr>' +
+    O.map(o => `<tr><td class="l">${esc(o.ma)}</td><td class="l">${esc(o.kho)}</td><td class="l">${esc(D.causeOrder[o.nn])}</td><td class="l">${tags(o)}</td><td>${dd(o.tao)}</td><td>${dd(o.packed)}</td><td>${dd(o.lay)}</td><td>${o.hk ?? ''}</td><td>${o.hv ?? ''}</td><td class="l">${esc(o.wms)}</td><td class="l">${esc(o.dv)}</td></tr>`).join('');
+}
+
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => D && render());
+init();
+</script>
+</body>
+</html>
