@@ -249,7 +249,7 @@ function renderDu() {
   const U = D.duuid;
   $('#duCard').style.display = U ? '' : 'none';
   if (!U) return;
-  const no = Object.entries(U.nonOrder).map(([k, v]) => `${k.toLowerCase()} ${nf(v)}`).join(', ');
+  const no = Object.entries(U.nonOrder).map(([k, v]) => `${k.replace(/^(Chuyển|Điều)/, s => s.toLowerCase())} ${nf(v)}`).join(', ');
   $('#duNote').innerHTML = `Trên kho, các đơn tạo trong tuần mà tới ${esc(U.pulled)} vẫn chưa được lấy hàng (Picklisted) dù đã đủ UID: ${nf(U.pickAll)} đơn, nhưng chỉ <b>${U.total} đơn bán hàng</b> (còn lại là ${no}). ` +
     `Cả ${U.total} đơn đều đã chờ quá 24 giờ. <b>${U.a} đơn đủ UID ngay từ đầu</b>; ${U.b} đơn nằm trong danh sách thiếu UID ở trên, sau đó mới đủ UID. ` +
     `Hệ thống không cho biết đơn đủ UID có qua CS hay chờ shop xác nhận không, nên lý do lấy từ lịch sử trạng thái đơn.`;
