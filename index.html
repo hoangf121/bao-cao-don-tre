@@ -112,6 +112,16 @@ ul.plain li{margin:4px 0}
  <div class="box"><table id="tOrd"></table></div>
 </div>
 
+<div class="card" id="duCard" style="display:none">
+ <h2>Đơn đủ UID nhưng vẫn kẹt chưa lấy hàng</h2>
+ <p class="note" id="duNote"></p>
+ <div class="scroll"><table id="tDu"></table></div>
+ <div class="filters" style="margin-top:14px">
+  <select id="fDu" aria-label="Lọc nhóm"><option value="">Cả 2 nhóm</option><option value="0">Đủ UID từ đầu</option><option value="1">Có trong danh sách thiếu UID</option></select>
+ </div>
+ <div class="box"><table id="tDuOrd"></table></div>
+</div>
+
 <p class="foot" id="foot"></p>
 </div>
 
@@ -208,6 +218,7 @@ function render() {
     D.causeOrder.map((k, i) => D.causes.some(c => c.k == k) ? `<option value="n:${i}">Lý do chính: ${esc(k)}</option>` : '').join('');
   sel.onchange = renderOrders; $('#fText').oninput = renderOrders;
   renderOrders();
+  renderDu();
   $('#foot').textContent = 'Nguồn: file đơn thiếu UID + hệ thống kho (WMS) + lịch sử trạng thái đơn (OMS). Giờ tính theo giờ Việt Nam.';
 }
 
@@ -232,6 +243,25 @@ function renderOrders() {
   const tags = o => [o.cs && 'CS', o.csxn && 'CS XN', o.shop && 'Shop XN', o.vc && 'Vận chuyển'].filter(Boolean).map(t => `<span class="tag">${t}</span>`).join('');
   $('#tOrd').innerHTML = '<tr><th class="l">Mã đơn</th><th class="l">Kho</th><th class="l">Lý do chính</th><th class="l">Cờ</th><th>Tạo đơn</th><th>Đóng gói</th><th>Vận chuyển lấy</th><th>Giờ tới đóng gói</th><th>Giờ chờ lấy</th><th class="l">Trạng thái kho</th><th class="l">Vận chuyển</th></tr>' +
     O.map(o => `<tr><td class="l">${esc(o.ma)}</td><td class="l">${esc(o.kho)}</td><td class="l">${esc(D.causeOrder[o.nn])}</td><td class="l">${tags(o)}</td><td>${dd(o.tao)}</td><td>${dd(o.packed)}</td><td>${dd(o.lay)}</td><td>${o.hk ?? ''}</td><td>${o.hv ?? ''}</td><td class="l">${esc(o.wms)}</td><td class="l">${esc(o.dv)}</td></tr>`).join('');
+}
+
+function renderDu() {
+  const U = D.duuid;
+  $('#duCard').style.display = U ? '' : 'none';
+  if (!U) return;
+  const no = Object.entries(U.nonOrder).map(([k, v]) => `${k.toLowerCase()} ${nf(v)}`).join(', ');
+  $('#duNote').innerHTML = `Trên kho, các đơn tạo trong tuần mà tới ${esc(U.pulled)} vẫn chưa được lấy hàng (Picklisted) dù đã đủ UID: ${nf(U.pickAll)} đơn, nhưng chỉ <b>${U.total} đơn bán hàng</b> (còn lại là ${no}). ` +
+    `Cả ${U.total} đơn đều đã chờ quá 24 giờ. <b>${U.a} đơn đủ UID ngay từ đầu</b>; ${U.b} đơn nằm trong danh sách thiếu UID ở trên, sau đó mới đủ UID. ` +
+    `Hệ thống không cho biết đơn đủ UID có qua CS hay chờ shop xác nhận không, nên lý do lấy từ lịch sử trạng thái đơn.`;
+  $('#tDu').innerHTML = '<tr><th class="l">Lý do kẹt</th><th>Đủ UID từ đầu</th><th>Có trong danh sách thiếu UID</th><th>Tổng</th></tr>' +
+    U.reasons.map(r => `<tr><td class="l">${esc(r.k)}</td><td>${r.a || ''}</td><td>${r.b || ''}</td><td><b>${r.a + r.b}</b></td></tr>`).join('') +
+    `<tr><td class="l"><b>Tổng</b></td><td><b>${U.a}</b></td><td><b>${U.b}</b></td><td><b>${U.total}</b></td></tr>`;
+  const draw = () => {
+    const g = $('#fDu').value; const O = U.orders.filter(o => g === '' || o.grp == +g);
+    $('#tDuOrd').innerHTML = '<tr><th class="l">Mã đơn</th><th class="l">Kho</th><th class="l">Nhóm</th><th class="l">Lý do kẹt</th><th>Tạo đơn</th><th>Giờ đã chờ</th><th>Chuyển shop</th><th>Đổi vận chuyển</th><th>Huỷ vận đơn</th><th class="l">Vận chuyển</th></tr>' +
+      O.map(o => `<tr><td class="l">${esc(o.ma)}</td><td class="l">${esc(o.kho)}</td><td class="l">${o.grp ? 'Từng thiếu UID' : 'Đủ UID từ đầu'}</td><td class="l">${esc(o.nn)}</td><td>${dd(o.tao)}</td><td>${o.h}</td><td>${o.ms || ''}</td><td>${o.dv || ''}</td><td>${o.hv || ''}</td><td class="l">${esc(o.dvvc)}</td></tr>`).join('');
+  };
+  $('#fDu').onchange = draw; draw();
 }
 
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => D && render());
