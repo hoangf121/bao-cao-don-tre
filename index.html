@@ -79,6 +79,12 @@ ul.plain li{margin:4px 0}
  <div class="scroll"><table id="tFlag"></table></div>
 </div>
 
+<div class="card" id="msCard" style="display:none">
+ <h2>Theo mốc của trang Operation (Order Tracking OMS)</h2>
+ <p class="note" id="msNote"></p>
+ <div class="scroll"><table id="tMs"></table></div>
+</div>
+
 <div class="card">
  <h2>Theo ngày tạo đơn</h2>
  <p class="note" id="dayNote"></p>
@@ -219,9 +225,12 @@ function render() {
     '<b>Trễ do vận chuyển:</b> từ lúc đóng gói tới lúc bên vận chuyển lấy hàng hơn 24 giờ.',
     '<b>Đơn đủ UID:</b> chỉ xét đơn bán hàng đủ UID mà tới lúc lấy số liệu vẫn chưa được lấy hàng trên kho. Đơn đủ UID đã đóng gói đúng hạn không có trong báo cáo.',
     'Hệ thống không cho biết đơn đủ UID có từng qua CS hay chờ shop xác nhận không, nên 3 trạng thái đó chỉ có số cho nhóm thiếu UID.',
+    '<b>Mốc trang Operation:</b> Pending > 1h, Processing > 5h, Picking/Picked > 3h, Packing/Packed > 7h (bỏ giờ nghỉ 22h–8h); Ready to ship/Shipping > 2 ngày nội tỉnh, > 5 ngày ngoại tỉnh. Vượt 1 mốc là tính trễ.',
+    'Đơn chưa rõ nội/ngoại tỉnh (đã hoàn tất nên không tra lại được) tạm tính theo ngoại tỉnh (5 ngày), có gắn nhãn "chưa rõ tỉnh".',
     'Đơn đã huỷ không tính.',
   ].map(x => `<li>${x}</li>`).join('');
 
+  renderMs();
   renderKho();
   const sel = $('#fCause');
   sel.innerHTML = '<option value="">Tất cả lý do</option>' +
@@ -234,9 +243,17 @@ function render() {
   $('#foot').textContent = 'Nguồn: file đơn thiếu UID + hệ thống kho (WMS) + lịch sử trạng thái đơn (OMS). Giờ tính theo giờ Việt Nam.';
 }
 
+function renderMs() {
+  const M = D.milestones; $('#msCard').style.display = M ? '' : 'none'; if (!M) return;
+  $('#msNote').innerHTML = 'Áp mốc báo đỏ của trang Operation (GHN/SPX nội tỉnh – ngoại tỉnh) vào lịch sử trạng thái OMS của từng đơn. Một đơn có thể vượt nhiều mốc. <b>' + (D.totals.late - D.lateOld) + ' đơn</b> trễ chỉ vì vượt mốc này (theo cách tính cũ thì không trễ).';
+  const lim = { 'Pending > 1h': '> 1 giờ', 'Processing > 5h': '> 5 giờ', 'Picking > 3h': '> 3 giờ', 'Picked > 3h': '> 3 giờ', 'Packing > 7h': '> 7 giờ', 'Packed > 7h': '> 7 giờ', 'Ready to ship quá hạn': '> 2 ngày nội tỉnh / > 5 ngày ngoại tỉnh', 'Shipping quá hạn (giao chậm)': '> 2 ngày nội tỉnh / > 5 ngày ngoại tỉnh' };
+  $('#tMs').innerHTML = '<tr><th class="l">Mốc</th><th class="l">Ngưỡng báo đỏ</th><th>Thiếu UID</th><th>Đủ UID</th><th>Tổng</th><th>Chỉ trễ vì mốc này</th></tr>' +
+    M.map(m => `<tr><td class="l">${esc(m.k)}</td><td class="l">${lim[m.k]}</td><td>${m.a || ''}</td><td>${m.b || ''}</td><td><b>${m.a + m.b || ''}</b></td><td>${m.only || ''}</td></tr>`).join('');
+}
+
 function renderKho() {
   const K = D.kho, n = khoAll ? K.length : Math.min(15, K.length);
-  const short = ['CS', 'CS XN', 'Shop XN', 'Vận chuyển', 'Chờ pick', 'Pick→pack', 'Đủ UID chưa gói', 'Hoàn giao lại', 'Thiếu LS'];
+  const short = ['CS', 'CS XN', 'Shop XN', 'Vận chuyển', 'Chờ pick', 'Pick→pack', 'Đủ UID chưa gói', 'Hoàn giao lại', 'Thiếu LS', 'Pending>1h', 'Processing>5h', 'Picking>3h', 'Picked>3h', 'Packing>7h', 'Packed>7h', 'RTS quá hạn', 'Shipping quá hạn'];
   const used = short.map((s, i) => K.some(k => k.c[i])).map((u, i) => u ? i : -1).filter(i => i >= 0);
   $('#tKho').innerHTML = '<tr><th class="l">Kho</th><th>Đơn của kho</th><th>Thiếu UID</th><th>Trễ thiếu UID</th><th>Trễ đủ UID</th><th>Tổng trễ</th>' + used.map(i => `<th>${short[i]}</th>`).join('') + '</tr>' +
     K.slice(0, n).map(k => `<tr><td class="l">${esc(k.kho.replace(/^(SHOP|OFFICE) - /, ''))}</td><td>${nf(k.out)}</td><td>${k.nouid || ''}</td><td>${k.la || ''}</td><td>${k.lb || ''}</td><td><b>${k.la + k.lb}</b></td>${used.map(i => `<td>${k.c[i] || ''}</td>`).join('')}</tr>`).join('');
@@ -273,8 +290,8 @@ function renderOrders() {
   if (q) { const exact = O.some(o => o.kho.toLowerCase() == q); O = O.filter(o => exact ? o.kho.toLowerCase() == q : (o.ma.toLowerCase().includes(q) || o.kho.toLowerCase().includes(q))); }
   $('#ordCount').textContent = `${O.length} đơn`;
   const tags = o => [o.cs && 'CS', o.csxn && 'CS XN', o.shop && 'Shop XN', o.vc && 'Vận chuyển'].filter(Boolean).map(t => `<span class="tag">${t}</span>`).join('');
-  $('#tOrd').innerHTML = '<tr><th class="l">Mã đơn</th><th class="l">Nhóm</th><th class="l">Kho</th><th class="l">Lý do chính</th><th class="l">Cờ</th><th>Tạo đơn</th><th>Đóng gói</th><th>Vận chuyển lấy</th><th>Giờ tới đóng gói</th><th>Giờ chờ lấy</th><th class="l">Trạng thái kho</th><th class="l">Vận chuyển</th></tr>' +
-    O.map(o => `<tr><td class="l">${esc(o.ma)}</td><td class="l">${o.grp ? 'Đủ UID' : 'Thiếu UID'}</td><td class="l">${esc(o.kho)}</td><td class="l" title="${esc(o.nd)}">${esc(D.causeOrder[o.nn])}${o.nd ? ' <span class="tag">' + esc(o.nd) + '</span>' : ''}</td><td class="l">${tags(o)}</td><td>${dd(o.tao)}</td><td>${dd(o.packed)}</td><td>${dd(o.lay)}</td><td>${o.hk ?? ''}</td><td>${o.hv ?? ''}</td><td class="l">${esc(o.wms)}</td><td class="l">${esc(o.dv)}</td></tr>`).join('');
+  $('#tOrd').innerHTML = '<tr><th class="l">Mã đơn</th><th class="l">Nhóm</th><th class="l">Kho</th><th class="l">Lý do chính</th><th class="l">Cờ</th><th class="l">Mốc Operation vượt</th><th>Tạo đơn</th><th>Đóng gói</th><th>Vận chuyển lấy</th><th>Giờ tới đóng gói</th><th>Giờ chờ lấy</th><th class="l">Trạng thái kho</th><th class="l">Vận chuyển</th></tr>' +
+    O.map(o => `<tr><td class="l">${esc(o.ma)}</td><td class="l">${o.grp ? 'Đủ UID' : 'Thiếu UID'}</td><td class="l">${esc(o.kho)}</td><td class="l" title="${esc(o.nd)}">${esc(D.causeOrder[o.nn])}${o.nd ? ' <span class="tag">' + esc(o.nd) + '</span>' : ''}</td><td class="l">${tags(o)}</td><td class="l">${(o.ms || []).map(m => `<span class="tag">${esc(m)}</span>`).join('')}${o.mb ? '<span class="tag" title="Shipping 2–5 ngày, chưa rõ nội/ngoại tỉnh">chưa rõ tỉnh</span>' : ''}</td><td>${dd(o.tao)}</td><td>${dd(o.packed)}</td><td>${dd(o.lay)}</td><td>${o.hk ?? ''}</td><td>${o.hv ?? ''}</td><td class="l">${esc(o.wms)}</td><td class="l">${esc(o.dv)}</td></tr>`).join('');
 }
 
 function renderDu() {
