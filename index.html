@@ -226,7 +226,7 @@ function render() {
     '<b>Đơn đủ UID:</b> chỉ xét đơn bán hàng đủ UID mà tới lúc lấy số liệu vẫn chưa được lấy hàng trên kho. Đơn đủ UID đã đóng gói đúng hạn không có trong báo cáo.',
     'Hệ thống không cho biết đơn đủ UID có từng qua CS hay chờ shop xác nhận không, nên 3 trạng thái đó chỉ có số cho nhóm thiếu UID.',
     '<b>Mốc trang Operation:</b> Pending > 1h, Processing > 5h, Picking/Picked > 3h, Packing/Packed > 7h (bỏ giờ nghỉ 22h–8h); Ready to ship/Shipping > 2 ngày nội tỉnh, > 5 ngày ngoại tỉnh. Vượt 1 mốc là tính trễ.',
-    'Đơn chưa rõ nội/ngoại tỉnh (đã hoàn tất nên không tra lại được) tạm tính theo ngoại tỉnh (5 ngày), có gắn nhãn "chưa rõ tỉnh".',
+    'Nội tỉnh/ngoại tỉnh theo đúng rule trang Operation: so tỉnh của shop đang giữ đơn với tỉnh giao hàng của đơn.',
     'Đơn đã huỷ không tính.',
   ].map(x => `<li>${x}</li>`).join('');
 
