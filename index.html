@@ -47,6 +47,8 @@ ul.plain{margin:6px 0 0;padding-left:20px}
 ul.plain li{margin:4px 0}
 .foot{color:var(--faint);font-size:13px;margin-top:28px}
 .err{color:var(--two)}
+#tTop a{color:var(--text);text-decoration:none;border-bottom:1px dotted var(--faint)}
+#tTop a:hover{color:var(--one);border-bottom-color:var(--one)}
 </style>
 </head>
 <body>
@@ -105,6 +107,10 @@ ul.plain li{margin:4px 0}
 
 <div class="card">
  <h2>Danh sách đơn trễ</h2>
+ <h3 style="font-size:16px;margin:10px 0 2px">Top 10 shop có nhiều đơn trễ nhất</h3>
+ <p class="note">Số đơn trễ của từng shop theo lý do chính. Bấm vào một ô để lọc danh sách bên dưới.</p>
+ <div class="scroll"><table id="tTop"></table></div>
+ <h3 style="font-size:16px;margin:18px 0 2px">Chi tiết từng đơn</h3>
  <div class="filters">
   <select id="fCause" aria-label="Lọc theo lý do"></select>
   <input type="search" id="fText" placeholder="Tìm mã đơn hoặc kho…" aria-label="Tìm">
@@ -222,6 +228,7 @@ function render() {
     [['g:0', 'Nhóm: thiếu UID'], ['g:1', 'Nhóm: đủ UID'], ['f:cs', 'Từng CS processing (cờ)'], ['f:csxn', 'Từng chờ CS xác nhận (cờ)'], ['f:shop', 'Từng chờ shop xác nhận (cờ)'], ['f:vc', 'Vận chuyển không tới lấy (cờ)']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('') +
     D.causeOrder.map((k, i) => D.causes.some(c => c.k == k) ? `<option value="n:${i}">Lý do chính: ${esc(k)}</option>` : '').join('');
   sel.onchange = renderOrders; $('#fText').oninput = renderOrders;
+  renderTop();
   renderOrders();
   renderDu();
   $('#foot').textContent = 'Nguồn: file đơn thiếu UID + hệ thống kho (WMS) + lịch sử trạng thái đơn (OMS). Giờ tính theo giờ Việt Nam.';
@@ -239,13 +246,31 @@ function renderKho() {
   b.onclick = () => { khoAll = !khoAll; renderKho(); };
 }
 
+function renderTop() {
+  const by = {};
+  D.orders.forEach(o => { const v = (by[o.kho] = by[o.kho] || { kho: o.kho, n: 0, c: {} }); v.n++; v.c[o.nn] = (v.c[o.nn] || 0) + 1; });
+  const top = Object.values(by).sort((a, b) => b.n - a.n).slice(0, 10);
+  const cols = D.causeOrder.map((k, i) => i).filter(i => top.some(s => s.c[i]));
+  const short = k => k.replace(' > 24h (thiếu UID / chờ hàng)', ' > 24h (thiếu UID / chờ hàng)');
+  $('#tTop').innerHTML = '<tr><th class="l">Kho</th><th>Tổng trễ</th>' + cols.map(i => `<th style="white-space:normal;min-width:96px">${esc(short(D.causeOrder[i]))}</th>`).join('') + '</tr>' +
+    top.map(s => `<tr><td class="l">${esc(s.kho)}</td><td><b><a href="#" data-k="${esc(s.kho)}" data-n="">${s.n} đơn</a></b></td>` +
+      cols.map(i => `<td>${s.c[i] ? `<a href="#" data-k="${esc(s.kho)}" data-n="${i}">${s.c[i]} đơn</a>` : ''}</td>`).join('') + '</tr>').join('');
+  $('#tTop').querySelectorAll('a').forEach(a => a.onclick = e => {
+    e.preventDefault();
+    $('#fText').value = a.dataset.k;
+    $('#fCause').value = a.dataset.n === '' ? '' : 'n:' + a.dataset.n;
+    renderOrders();
+    $('#ordCount').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
 function renderOrders() {
   const f = $('#fCause').value, q = $('#fText').value.trim().toLowerCase();
   let O = D.orders;
   if (f.startsWith('g:')) O = O.filter(o => o.grp == +f.slice(2));
   if (f.startsWith('f:')) O = O.filter(o => o[f.slice(2)]);
   if (f.startsWith('n:')) O = O.filter(o => o.nn == +f.slice(2));
-  if (q) O = O.filter(o => o.ma.toLowerCase().includes(q) || o.kho.toLowerCase().includes(q));
+  if (q) { const exact = O.some(o => o.kho.toLowerCase() == q); O = O.filter(o => exact ? o.kho.toLowerCase() == q : (o.ma.toLowerCase().includes(q) || o.kho.toLowerCase().includes(q))); }
   $('#ordCount').textContent = `${O.length} đơn`;
   const tags = o => [o.cs && 'CS', o.csxn && 'CS XN', o.shop && 'Shop XN', o.vc && 'Vận chuyển'].filter(Boolean).map(t => `<span class="tag">${t}</span>`).join('');
   $('#tOrd').innerHTML = '<tr><th class="l">Mã đơn</th><th class="l">Nhóm</th><th class="l">Kho</th><th class="l">Lý do chính</th><th class="l">Cờ</th><th>Tạo đơn</th><th>Đóng gói</th><th>Vận chuyển lấy</th><th>Giờ tới đóng gói</th><th>Giờ chờ lấy</th><th class="l">Trạng thái kho</th><th class="l">Vận chuyển</th></tr>' +
